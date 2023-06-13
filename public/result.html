@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Report</title>
+    <script src="https://cdn.amcharts.com/lib/4/core.js"></script>
+    <script src="https://cdn.amcharts.com/lib/4/charts.js"></script>
+    <script src="https://cdn.amcharts.com/lib/4/themes/animated.js"></script>
+    <style>
+      .chart {
+        width: 100%;
+        height: 300px;
+      }
+      .chart-half {
+        width: 50%;
+        height: 300px;
+      }
+
+      #chart-header {
+        text-align: center;
+      }
+
+      #main-header {
+            padding:40px 50px;
+        }
+
+
+        .master-title {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-size: 30px;
+          color: #181818;
+          text-align: center;
+        }
+
+        .master-description {
+            font-size:15px; font-weight:500;
+            color:#383838;
+            text-align: right;
+        }
+    </style>
+  </head>
+  <body>
+
+    <header id="main-header">
+      <h1 class="master-title">Node.js를 활용한 Profiler</h1>
+      <h2 class="master-description">20190825 문지후    20190833 박창운</h2>
+      <h2 class="master-description">20190853 이동재    20190857 이정민</h2>
+    </header>
+    <hr/>
+
+    <h3 id="chart-header"></h3>
+    <div id="chart" class="chart"></div>
+    <div style="display: flex;">
+      <div id="nested-donut-chart" class="chart-half"></div>
+      <div id="vertical-bar-chart" class="chart-half"></div>
+    </div>
+    
+
+    <hr />
+    <div>
+      <h3>작업 단위</h3>
+      <div>
+        <button
+          onclick="renderValueByTaskChart('Task1의 코어별 수행 능력', fullPayload.byTask.task1)"
+        >
+          task1
+        </button>
+        <button
+          onclick="renderValueByTaskChart('Task2의 core별 수행 능력', fullPayload.byTask.task2)"
+        >
+          task2
+        </button>
+        <button
+          onclick="renderValueByTaskChart('Task3의 core별 수행 능력', fullPayload.byTask.task3)"
+        >
+          task3
+        </button>
+        <button
+          onclick="renderValueByTaskChart('Task4의 core별 수행 능력', fullPayload.byTask.task4)"
+        >
+          task4
+        </button>
+        <button
+          onclick="renderValueByTaskChart('Task5의 core별 수행 능력', fullPayload.byTask.task5)"
+        >
+          task5
+        </button>
+      </div>
+
+      <h3>코어 단위</h3>
+      <div>
+        <button
+          onclick="renderValueByTaskChart('Core1의 task별 수행 능력', fullPayload.byCore.core1)"
+        >
+          core1
+        </button>
+        <button
+          onclick="renderValueByTaskChart('Core2의 task별 수행 능력', fullPayload.byCore.core2)"
+        >
+          core2
+        </button>
+        <button
+          onclick="renderValueByTaskChart('Core3의 task별 수행 능력', fullPayload.byCore.core3)"
+        >
+          core3
+        </button>
+        <button
+          onclick="renderValueByTaskChart('Core4의 task별 수행 능력', fullPayload.byCore.core4)"
+        >
+          core4
+        </button>
+        <button
+          onclick="renderValueByTaskChart('Core5의 task별 수행 능력', fullPayload.byCore.core5)"
+        >
+          core5
+        </button>
+      </div>
+    </div>
+
+    <script>
+      function fetchData() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const requestId = urlParams.get("requestId");
+
+        const apiURL = "/result/" + requestId;
+
+        return fetch(apiURL)
+          .then(function (response) {
+            // 응답 처리
+            if (response.ok) {
+              return response.json();
+            } else {
+              throw new Error("조회에 실패했습니다.");
+            }
+          })
+          .catch(function (error) {
+            console.error("조회에 실패했습니다.", error);
+          });
+      }
+
+      let fullPayload;
+      fetchData().then(function (payload) {
+        fullPayload = payload;
+        renderValueByTaskChart(
+          "Task1의 코어별 수행 능력",
+          fullPayload.byTask.task1
+        );
+      });
+
+      function renderValueByTaskChart(name, data) {
+        // 차트 제목 설정
+        document.getElementById("chart-header").innerText = name;
+
+        _renderLineChart(data);
+        _renderNestedDonutChart(data);
+        _renderVerticalBarChart(data);
+      }
+
+      am4core.ready(function () {
+        am4core.useTheme(am4themes_animated);
+      });
+
+      function _renderLineChart(data) {
+        // 차트 생성
+        const chart = am4core.create("chart", am4charts.XYChart);
+
+        // 데이터 가공
+        const processedData = [];
+        for (let i = 0; i < data.length; i++) {
+          const item = data[i];
+          processedData.push({
+            name: item.name,
+            avg: item.avg,
+            min: item.min,
+            max: item.max,
+          });
+        }
+        chart.data = processedData;
+
+        // X축 설정
+        const categoryAxis = chart.xAxes.push(new am4charts.CategoryAxis());
+        categoryAxis.dataFields.category = "name";
+        categoryAxis.renderer.minGridDistance = 20;
+
+        const valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
+        valueAxis.title.text = "Values";
+
+        const avgSeries = chart.series.push(new am4charts.LineSeries());
+        avgSeries.dataFields.valueY = "avg";
+        avgSeries.dataFields.categoryX = "name";
+        avgSeries.name = "Average";
+        avgSeries.strokeWidth = 2;
+
+        const minSeries = chart.series.push(new am4charts.LineSeries());
+        minSeries.dataFields.valueY = "min";
+        minSeries.dataFields.categoryX = "name";
+        minSeries.name = "Minimum";
+        minSeries.strokeWidth = 2;
+
+        const maxSeries = chart.series.push(new am4charts.LineSeries());
+        maxSeries.dataFields.valueY = "max";
+        maxSeries.dataFields.categoryX = "name";
+        maxSeries.name = "Maximum";
+        maxSeries.strokeWidth = 2;
+
+        chart.legend = new am4charts.Legend();
+
+        chart.cursor = new am4charts.XYCursor();
+
+        avgSeries.tooltipText = "Average: {valueY}";
+        minSeries.tooltipText = "Minimum: {valueY}";
+        maxSeries.tooltipText = "Maximum: {valueY}";
+
+        avgSeries.bullets.push(new am4charts.CircleBullet());
+        minSeries.bullets.push(new am4charts.CircleBullet());
+        maxSeries.bullets.push(new am4charts.CircleBullet());
+      }
+
+      function _renderNestedDonutChart(data) {
+        // 차트 인스턴스 생성
+        const chart = am4core.create("nested-donut-chart", am4charts.PieChart);
+
+        // 차트 데이터 설정
+        chart.data = data;
+
+        // 차트 내부 반지름 설정
+        chart.innerRadius = am4core.percent(40);
+
+        // 차트 시리즈 생성
+        const series = chart.series.push(new am4charts.PieSeries());
+        series.dataFields.value = "avg";
+        series.dataFields.category = "name";
+
+        // 내부 Donut 차트 생성
+        const innerSeries = chart.series.push(new am4charts.PieSeries());
+        innerSeries.dataFields.value = "max";
+        innerSeries.dataFields.category = "name";
+        innerSeries.slices.template.stroke = am4core.color("#fff");
+        innerSeries.slices.template.strokeWidth = 2;
+        innerSeries.slices.template.strokeOpacity = 0.7;
+
+        const innerSeries2 = chart.series.push(new am4charts.PieSeries());
+        innerSeries2.dataFields.value = "min";
+        innerSeries2.dataFields.category = "name";
+        innerSeries2.slices.template.stroke = am4core.color("#fff");
+        innerSeries2.slices.template.strokeWidth = 2;
+        innerSeries2.slices.template.strokeOpacity = 0.7;
+
+        // 라벨 설정
+        series.labels.template.disabled = true;
+        series.ticks.template.disabled = true;
+        innerSeries.labels.template.disabled = true;
+        innerSeries.ticks.template.disabled = true;
+        innerSeries2.labels.template.disabled = true;
+        innerSeries2.ticks.template.disabled = true;
+
+        // 시리즈 색상 설정
+        series.colors.list = [
+          am4core.color("#67b7dc"),
+          am4core.color("#fdd400"),
+          am4core.color("#84b761"),
+          am4core.color("#e98300"),
+          am4core.color("#cc4748"),
+        ];
+        innerSeries.colors.list = [
+          am4core.color("#67b7dc"),
+          am4core.color("#fdd400"),
+          am4core.color("#84b761"),
+          am4core.color("#e98300"),
+          am4core.color("#cc4748"),
+        ];
+        innerSeries2.colors.list = [
+          am4core.color("#67b7dc"),
+          am4core.color("#fdd400"),
+          am4core.color("#84b761"),
+          am4core.color("#e98300"),
+          am4core.color("#cc4748"),
+        ];
+
+        // 툴팁 설정
+        series.slices.template.tooltipText = "{name} Average: {value}";
+        innerSeries.slices.template.tooltipText = "{name} Maximum: {value}";
+        innerSeries2.slices.template.tooltipText = "{name} Minimum: {value}";
+
+        // 차트 레이아웃 업데이트
+        chart.innerRadius = am4core.percent(30);
+        innerSeries.innerRadius = am4core.percent(50);
+        innerSeries2.innerRadius = am4core.percent(80);
+
+        // 애니메이션 효과 적용
+        chart.hiddenState.properties.opacity = 0;
+        chart.hiddenState.properties.radius = am4core.percent(0);
+
+        // 차트 레이아웃 업데이트
+        chart.invalidateLayout();
+      }
+
+      function _renderVerticalBarChart(data) {
+        // 차트 인스턴스 생성
+        const chart = am4core.create("vertical-bar-chart", am4charts.XYChart);
+
+        // 데이터 연결
+        chart.data = data;
+
+        // X축 설정
+        const categoryAxis = chart.xAxes.push(new am4charts.CategoryAxis());
+        categoryAxis.dataFields.category = "name";
+        categoryAxis.renderer.minGridDistance = 20;
+        categoryAxis.renderer.labels.template.rotation = 270;
+        categoryAxis.renderer.labels.template.verticalCenter = "middle";
+        categoryAxis.renderer.labels.template.horizontalCenter = "right";
+
+        // Y축 설정
+        const valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
+
+        // 세로 바 시리즈 생성 - avg
+        const avgSeries = chart.series.push(new am4charts.ColumnSeries());
+        avgSeries.dataFields.valueY = "avg";
+        avgSeries.dataFields.categoryX = "name";
+        avgSeries.name = "Average";
+        avgSeries.columns.template.tooltipHTML =
+          "<b>[{name}]</b> Average: {valueY}";
+
+        // 세로 바 시리즈 생성 - min
+        const minSeries = chart.series.push(new am4charts.ColumnSeries());
+        minSeries.dataFields.valueY = "min";
+        minSeries.dataFields.categoryX = "name";
+        minSeries.name = "Minimum";
+        minSeries.columns.template.tooltipHTML =
+          "<b>[{name}]</b> Minimum: {valueY}";
+
+        // 세로 바 시리즈 생성 - max
+        const maxSeries = chart.series.push(new am4charts.ColumnSeries());
+        maxSeries.dataFields.valueY = "max";
+        maxSeries.dataFields.categoryX = "name";
+        maxSeries.name = "Maximum";
+        maxSeries.columns.template.tooltipHTML =
+          "<b>[{name}]</b> Maximum: {valueY}";
+
+        // 범례 설정
+        chart.legend = new am4charts.Legend();
+
+        // 차트 크기 조정
+        chart.paddingBottom = 40;
+
+        // 차트 리사이즈 이벤트 처리
+        chart.events.on("datavalidated", function () {
+          chart.svgContainer.htmlElement.style.height =
+            avgSeries.columns.template.pixelHeight * 3 + "px";
+        });
+      }
+
+      
+    </script>
+  </body>
+</html>
